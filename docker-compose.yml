@@ -1,0 +1,20 @@
+version: '3.8'
+services:
+  bot_env:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: omeh2003/bot_env:latest
+    volumes:
+      - "./data/:/app/data/"
+      - "./env/:/app/env/"
+      - "/home/omeh2003/git/:/app/git/"
+      - "./.env:/app/.env"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:5000/"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+    restart: always
+    ports:
+      - "5000:5000"

@@ -1,0 +1,20 @@
+[tool.poetry]
+name = "botenvrot"
+version = "0.1.0"
+description = "Бот для управления файлами .env других проектов на сервере"
+authors = ["Omeh2003 <omeh2003@gmail.com>"]
+license = "MITM"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11.4"
+aiogram = "^3.0"
+chardet = "^5.2.0"
+psutil = "^5.9.5"
+python-dotenv = "^1.0.0"
+pydantic = "^2.3.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
