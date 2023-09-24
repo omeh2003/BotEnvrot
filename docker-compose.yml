@@ -7,7 +7,7 @@ services:
     image: omeh2003/bot_env:latest
     volumes:
       - "./data/:/app/data/"
-      - "./env/:/app/env/"
+      - "./cfg/:/app/cfg/"
       - "/home/omeh2003/git/:/app/git/"
       - "./.env:/app/.env"
     healthcheck:
