@@ -145,8 +145,8 @@ async def handle_start(msg: types.Message):
     # Создание кнопок для выбора проекта
     buttons = []
     for project in list_projects():
-        buttons.append(
-            InlineKeyboardButton(text=project, callback_data=f"project:{project}")
+        buttons.extend(
+            [InlineKeyboardButton(text=project, callback_data=f"project:{project}")]
         )
 
     # Создание клавиатуры
