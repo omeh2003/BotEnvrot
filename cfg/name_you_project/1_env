@@ -1,0 +1,5 @@
+BOT_API_TOKEN="Токен бота"
+PROJECT_DIR="Путь к папке с проектами"
+ENV_DIR="./cfg"
+ADMIN_ID="ID админа"
+DEBUG=False
