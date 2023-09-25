@@ -33,7 +33,7 @@
 1. Клонировать репозиторий:
 
     ```bash
-    git clone https://github.com/yourusername/your-repo.git
+    git clone https://github.com/omeh2003/BotEnvrot.git
     ```
 
 2. Установить зависимости:
@@ -47,7 +47,7 @@
 4. Запустить бота:
 
     ```bash
-    python main.py
+    python botenv.py
     ```
 
 ## Использование
