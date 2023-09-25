@@ -76,7 +76,7 @@ project_dir = os.environ.get("PROJECT_DIR")
 env_dir = os.environ.get("ENV_DIR")
 
 
-def list_projects():
+def list_projects() -> list[str]:
     """
     Получает список всех проектов в директории, указанной в переменной окружения project_dir.
 
@@ -85,10 +85,13 @@ def list_projects():
     """
     logger.info(f"list_projects: {project_dir}")
     try:
+        list_dir= os.listdir(project_dir)
+        logger.info(f"list_projects: {list_dir}")
+        logger.info(f"type: {type(list_dir)}")
         return os.listdir(project_dir)
     except FileNotFoundError as e:
         logger.exception(f"Exception: {e}")
-        return "No projects dir found."
+        return ["No projects dir found."]
 
 
 def list_env_files(project):
@@ -107,6 +110,28 @@ def list_env_files(project):
     except FileNotFoundError as e:
         logger.exception(f"Exception: {e}")
         return "No env files found."
+
+def actual_env_file(project):
+    """
+    Получает имя актуального файла окружения для заданного проекта. Берет его содержимое, форматирует и возврашает текст.
+    Args:
+        project:
+
+    Returns:
+        str: Текст актуального файла окружения.
+    """
+    logger.info(f"actual_env_file: {project}")
+    try:
+        env_file = open(f"{project_dir}{project}/.env", "r")
+        env_file_text = env_file.read()
+        env_file.close()
+        env_file_text = env_file_text.replace("=", " = ")
+        env_file_text = env_file_text.replace("\n", "\n\n")
+        return env_file_text
+    except FileNotFoundError as e:
+        logger.exception(f"Exception: {e}")
+        return "No env files found."
+
 
 
 def docker_command(*args):
@@ -145,13 +170,19 @@ async def handle_start(msg: types.Message):
     # Создание кнопок для выбора проекта
     buttons = []
     for project in list_projects():
+        logger.info(f"project: {project} type: {type(project)}")
+        button=[
+            [
+                InlineKeyboardButton(text=project, callback_data=f"project:{project}")
+            ],
+        ]
         buttons.extend(
-            [InlineKeyboardButton(text=project, callback_data=f"project:{project}")]
+           button
         )
 
     # Создание клавиатуры
     keybord = InlineKeyboardMarkup(
-        inline_keyboard=[buttons],
+        inline_keyboard=buttons,
         row_width=1,
         resize_keyboard=True,
         one_time_keyboard=True,
@@ -171,6 +202,12 @@ async def handle_project(callback_query: types.CallbackQuery):
     """
     # Получение имени проекта из callback_data
     project = callback_query.data.split(":")[1]
+
+    env_text= actual_env_file(project)
+    await bot.send_message(
+        callback_query.from_user.id,
+        f"Actual env file for {project}:\n\n{env_text}",
+    )
 
     # Создание кнопок для выбора файла окружения
     buttons = []
