@@ -121,7 +121,7 @@ def docker_command(*args):
     """
     logger.info(f"docker_command: {args}")
     try:
-        subprocess.run(["docker-compose", *args], check=True)
+        subprocess.run(["docker", "compose", *args], check=True)
         logger.info(f"docker_command:  {args} success")
         return True
     except subprocess.CalledProcessError as e:
