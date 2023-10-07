@@ -47,7 +47,7 @@ else:
 logger = logging.getLogger(__name__)
 
 # Примеры сообщений для логгера
-logger.info(f"Стартуем!!!!!")
+logger.info("Стартуем!!!!!")
 logger.debug("Debug")
 logger.info("Info")
 logger.warning("Warning")
@@ -56,18 +56,24 @@ logger.critical("Critical")
 
 # Пример обработки исключения с логированием
 try:
-    logging.info(f"check loging exeption")
+    logging.info("check loging exeption")
     raise Exception("Test exeption")
 except Exception as e:
-    logging.exception(f"Exception!!!")
+    logging.exception("Exception!!!")
     logging.exception(f"{e.args}")
     logging.exception(f"{traceback.format_tb(e.__traceback__)}")
 
 # Получение токена бота и ID администратора из переменных окружения
-BOT_API_TOKEN = os.environ.get("BOT_API_TOKEN")
+BOT_API_TOKEN=(os.environ.get("BOT_API_TOKEN_DEBUG") 
+               if DEBUG == "True"
+               else os.environ.get("BOT_API_TOKEN")
+               if DEBUG == "False" 
+                else ""
+)
 ADMIN_ID = os.environ.get("ADMIN_ID")
 
 # Инициализация бота и диспетчера
+
 bot = Bot(token=BOT_API_TOKEN)
 dp = Dispatcher()
 
@@ -129,8 +135,7 @@ def actual_env_file(project):
         env_file_text = env_file_text.replace("\n", "\n\n")
         return env_file_text
     except FileNotFoundError as e:
-        logger.exception(f"Exception: {e}")
-        return "No env files found."
+       return ("No env files found.")
 
 
 
