@@ -15,7 +15,7 @@ venv
 
 # Игнорирование настроек Visual Studio Code
 .vscode/
-
+tests/
 # Игнорирование автоматически сгенерированных клиентских библиотек для Swagger
 swagger_client/
 
@@ -30,3 +30,8 @@ Dockerfile
 
 # Игнорирование файла docker-compose
 docker-compose.yml
+.dockerignore
+*.bak
+*.png
+README.md
+LICENSE
