@@ -20,10 +20,10 @@ str_now = datetime.datetime.now().strftime("%d-%m-%Y_%H%M")
 file_log = os.path.abspath("data" + os.sep + f"appbot_{str_now}.log")
 
 # Получение значения переменной DEBUG из окружения
-DEBUG = os.environ.get("DEBUG")
+DEBUG = os.environ.get("DEBUG","False")
 
 # Настройка логгирования в зависимости от DEBUG
-if DEBUG:
+if DEBUG=="True":
     logging.basicConfig(
         level=logging.INFO,
         encoding="utf-8",
@@ -66,10 +66,8 @@ except Exception as e:
 # Получение токена бота и ID администратора из переменных окружения
 BOT_API_TOKEN=(os.environ.get("BOT_API_TOKEN_DEBUG") 
                if DEBUG == "True"
-               else os.environ.get("BOT_API_TOKEN")
-               if DEBUG == "False" 
-                else ""
-)
+               else os.environ.get("BOT_API_TOKEN"))
+
 ADMIN_ID = os.environ.get("ADMIN_ID")
 
 # Инициализация бота и диспетчера
@@ -112,7 +110,7 @@ def list_env_files(project):
     """
     logger.info(f"list_env_files: {env_dir}")
     try:
-        return os.listdir(env_dir + project)
+        return os.listdir(os.path.join(env_dir, project))
     except FileNotFoundError as e:
         logger.exception(f"Exception: {e}")
         return "No env files found."
@@ -128,7 +126,9 @@ def actual_env_file(project):
     """
     logger.info(f"actual_env_file: {project}")
     try:
-        env_file = open(f"{project_dir}{project}/.env", "r")
+        path_env =os.path.join(project_dir,project)
+
+        env_file = open(f"{path_env}{os.sep}.env", "r")
         env_file_text = env_file.read()
         env_file.close()
         env_file_text = env_file_text.replace("=", " = ")
@@ -208,11 +208,7 @@ async def handle_project(callback_query: types.CallbackQuery):
     # Получение имени проекта из callback_data
     project = callback_query.data.split(":")[1]
 
-    env_text= actual_env_file(project)
-    await bot.send_message(
-        callback_query.from_user.id,
-        f"Actual env file for {project}:\n\n{env_text}",
-    )
+
 
     # Создание кнопок для выбора файла окружения
     buttons = []
@@ -235,10 +231,16 @@ async def handle_project(callback_query: types.CallbackQuery):
         ]
     )
 
+    buttons.extend(
+        [
+            [InlineKeyboardButton(text="Print .env",callback_data=f"print:{project}")],
+        ]
+    )
+
     # Создание клавиатуры
     keybord = InlineKeyboardMarkup(
         inline_keyboard=buttons,
-        row_width=1,
+        row_width=3,
         resize_keyboard=True,
         one_time_keyboard=True,
     )
@@ -412,6 +414,14 @@ async def handle_restart(callback_query: types.CallbackQuery):
             callback_query.from_user.id, "Failed to restart Docker container."
         )
 
+@dp.callback_query(F.data.startswith("print:"))
+async def handle_print(callback_query: types.CallbackQuery):
+    _, project = callback_query.data.split(":")
+    env_text= actual_env_file(project)
+    await bot.send_message(
+        callback_query.from_user.id,
+        f"Actual env file for {project}:\n\n{env_text}",
+    )
 
 async def main():
     """
