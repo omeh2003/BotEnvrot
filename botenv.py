@@ -1,6 +1,7 @@
 # Импорт необходимых библиотек и модулей
 import asyncio
 import datetime
+import re
 import shutil
 import traceback
 from aiogram import Bot, Dispatcher, types, F, Router
@@ -20,16 +21,16 @@ str_now = datetime.datetime.now().strftime("%d-%m-%Y_%H%M")
 file_log = os.path.abspath("data" + os.sep + f"appbot_{str_now}.log")
 
 # Получение значения переменной DEBUG из окружения
-DEBUG = os.environ.get("DEBUG","False")
+DEBUG = os.environ.get("DEBUG", "False")
 
 # Настройка логгирования в зависимости от DEBUG
-if DEBUG=="True":
+if DEBUG == "True":
     logging.basicConfig(
         level=logging.INFO,
         encoding="utf-8",
         format="%(levelname)s - %(name)s - %(funcName)s  -  "
-        "Message: %(message)s - "
-        " - Line: %(lineno)d",
+               "Message: %(message)s - "
+               " - Line: %(lineno)d",
     )
 else:
     logging.basicConfig(
@@ -38,9 +39,9 @@ else:
         filename=file_log,
         encoding="utf-8",
         format="%(levelname)s | %(asctime)s | %(name)s | %(lineno)d |  "
-        "Method: %(funcName)s | "
-        "Message: %(message)s | "
-        "%(pathname)s",
+               "Method: %(funcName)s | "
+               "Message: %(message)s | "
+               "%(pathname)s",
     )
 
 # Инициализация логгера
@@ -54,19 +55,11 @@ logger.warning("Warning")
 logger.error("Error")
 logger.critical("Critical")
 
-# Пример обработки исключения с логированием
-try:
-    logging.info("check loging exeption")
-    raise Exception("Test exeption")
-except Exception as e:
-    logging.exception("Exception!!!")
-    logging.exception(f"{e.args}")
-    logging.exception(f"{traceback.format_tb(e.__traceback__)}")
 
 # Получение токена бота и ID администратора из переменных окружения
-BOT_API_TOKEN=(os.environ.get("BOT_API_TOKEN_DEBUG") 
-               if DEBUG == "True"
-               else os.environ.get("BOT_API_TOKEN"))
+BOT_API_TOKEN = (os.environ.get("BOT_API_TOKEN_DEBUG")
+                 if DEBUG == "True"
+                 else os.environ.get("BOT_API_TOKEN"))
 
 ADMIN_ID = os.environ.get("ADMIN_ID")
 
@@ -89,16 +82,16 @@ def list_projects() -> list[str]:
     """
     logger.info(f"list_projects: {project_dir}")
     try:
-        list_dir= os.listdir(project_dir)
+        list_dir = os.listdir(project_dir)
         logger.info(f"list_projects: {list_dir}")
         logger.info(f"type: {type(list_dir)}")
         return os.listdir(project_dir)
     except FileNotFoundError as e:
         logger.exception(f"Exception: {e}")
-        return ["No projects dir found."]
+        return list(["No projects dir found."])
 
 
-def list_env_files(project):
+def list_env_files(project) -> list[str]:
     """
     Получает список всех файлов окружения для заданного проекта.
 
@@ -113,7 +106,8 @@ def list_env_files(project):
         return os.listdir(os.path.join(env_dir, project))
     except FileNotFoundError as e:
         logger.exception(f"Exception: {e}")
-        return "No env files found."
+        return ["No env files found."]
+
 
 def actual_env_file(project):
     """
@@ -126,17 +120,56 @@ def actual_env_file(project):
     """
     logger.info(f"actual_env_file: {project}")
     try:
-        path_env =os.path.join(project_dir,project)
+        path_env = os.path.join(project_dir, project)
+        with open(f"{path_env}{os.sep}.env", "r") as f:
+            env_file_text = f.read()
 
-        env_file = open(f"{path_env}{os.sep}.env", "r")
-        env_file_text = env_file.read()
-        env_file.close()
-        env_file_text = env_file_text.replace("=", " = ")
-        env_file_text = env_file_text.replace("\n", "\n\n")
-        return env_file_text
+        # Регулярное выражение для замены значиний содержаших API KEY переменных на маскированные.
+        # токе может начинаться со стороки в которой есть слова TOKEN, KEY, SECRET, PASSWORD
+        # и заканчиваться на = или на любой символ кроме букв и цифр
+        secure_env_file_text = []
+        for line in env_file_text.split("\n"):
+            if re.search(r"(?i)(TOKEN|KEY|SECRET|PASSWORD).*", line):
+                new_line = line[:line.find("=")] + "=**********"
+                secure_env_file_text.append(new_line)
+            else:
+                secure_env_file_text.append(line)
+        secure_env_file_text = "\n".join(secure_env_file_text)
+        return secure_env_file_text
     except FileNotFoundError as e:
-       return ("No env files found.")
+        return list(["No env files found."])
 
+
+
+async def run_docker_command(*args):
+    command = ["docker", "compose", *args]
+    logger.info(f"Executing: {' '.join(command)}")
+
+    process = await asyncio.create_subprocess_exec(
+        *command,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE
+    )
+
+    stdout, stderr = await process.communicate()
+
+    if process.returncode == 0:
+        logger.info(f"Command succeeded with output: {stdout.decode().strip()}")
+        return True, stdout.decode().strip()
+    else:
+        logger.error(f"Command failed with error: {stderr.decode().strip()}")
+        return False, stderr.decode().strip()
+
+
+async def wraper_docker_command(*args):
+    tasks = [
+        run_docker_command(args),
+        run_docker_command("ps"),
+        run_docker_command("logs")
+    ]
+    results = await asyncio.gather(*tasks)
+    for success, output in results:
+        return f"Success: {success}, Output: {output}"
 
 
 def docker_command(*args):
@@ -176,13 +209,13 @@ async def handle_start(msg: types.Message):
     buttons = []
     for project in list_projects():
         logger.info(f"project: {project} type: {type(project)}")
-        button=[
+        button = [
             [
                 InlineKeyboardButton(text=project, callback_data=f"project:{project}")
             ],
         ]
         buttons.extend(
-           button
+            button
         )
 
     # Создание клавиатуры
@@ -208,8 +241,6 @@ async def handle_project(callback_query: types.CallbackQuery):
     # Получение имени проекта из callback_data
     project = callback_query.data.split(":")[1]
 
-
-
     # Создание кнопок для выбора файла окружения
     buttons = []
     for env_file in list_env_files(project):
@@ -233,7 +264,7 @@ async def handle_project(callback_query: types.CallbackQuery):
 
     buttons.extend(
         [
-            [InlineKeyboardButton(text="Print .env",callback_data=f"print:{project}")],
+            [InlineKeyboardButton(text="Print .env", callback_data=f"print:{project}")],
         ]
     )
 
@@ -265,11 +296,11 @@ async def handle_env(callback_query: types.CallbackQuery):
 
     # Остановка текущего Docker-контейнера
     if docker_command(
-            "--file",
-            f"{project_dir}{project}/docker-compose.yml",
-            "--project-directory",
-            f"{os.path.abspath(project_dir + project)}",
-            "down",
+        "--file",
+        f"{project_dir}{project}/docker-compose.yml",
+        "--project-directory",
+        f"{os.path.abspath(project_dir + project)}",
+        "down",
     ):
         # Удаление текущего файла окружения, если он существует
         if os.path.exists(project_dir + project + "/.env"):
@@ -280,12 +311,12 @@ async def handle_env(callback_query: types.CallbackQuery):
 
         # Запуск Docker-контейнера с новым файлом окружения
         if docker_command(
-                "--file",
-                f"{project_dir}{project}/docker-compose.yml",
-                "--project-directory",
-                f"{os.path.abspath(project_dir + project)}",
-                "up",
-                "-d",
+            "--file",
+            f"{project_dir}{project}/docker-compose.yml",
+            "--project-directory",
+            f"{os.path.abspath(project_dir + project)}",
+            "up",
+            "-d",
         ):
             # Логирование вывода команды 'docker-compose logs'
             logs = subprocess.run(
@@ -329,12 +360,12 @@ async def handle_start(callback_query: types.CallbackQuery):
 
     # Попытка запуска Docker-контейнера
     if docker_command(
-            "--file",
-            f"{project_dir}{project}/docker-compose.yml",
-            "--project-directory",
-            f"{os.path.abspath(project_dir + project)}",
-            "up",
-            "-d",
+        "--file",
+        f"{project_dir}{project}/docker-compose.yml",
+        "--project-directory",
+        f"{os.path.abspath(project_dir + project)}",
+        "up",
+        "-d",
     ):
         # Логирование вывода команды 'docker-compose logs'
         logs = subprocess.run(
@@ -404,6 +435,7 @@ async def handle_restart(callback_query: types.CallbackQuery):
             capture_output=True,
             text=True,
         )
+
         logging.info(logs.stdout)
         await bot.send_message(
             callback_query.from_user.id,
@@ -414,21 +446,37 @@ async def handle_restart(callback_query: types.CallbackQuery):
             callback_query.from_user.id, "Failed to restart Docker container."
         )
 
+
 @dp.callback_query(F.data.startswith("print:"))
 async def handle_print(callback_query: types.CallbackQuery):
+    await callback_query.answer()
     _, project = callback_query.data.split(":")
-    env_text= actual_env_file(project)
+    env_text = actual_env_file(project)
     await bot.send_message(
         callback_query.from_user.id,
         f"Actual env file for {project}:\n\n{env_text}",
     )
+
+async def on_startup(self):
+    await self.bot.send_message(int(ADMIN_ID), "Бот запущен")
+    await self.bot.send_message(
+        int(ADMIN_ID), self._generate_env_info(), parse_mode="MarkdownV2"
+    )
+    logger.info("Starting connection.")
+
+async def on_shutdown(self):
+    logger.error("Shutting down connection.")
+    await self.bot.send_message(int(ADMIN_ID), "Бот остановлен")
+    logger.info("Storage closed.")
+
 
 async def main():
     """
     Основная асинхронная функция для запуска опроса бота.
     """
     # Запуск опроса бота для получения обновлений
-    await dp.start_polling(bot)
+    await dp.start_polling(bot, skip_updates=True, on_startup=on_startup, on_shutdown=on_shutdown)
+
 
 # Точка входа в программу
 if __name__ == "__main__":
